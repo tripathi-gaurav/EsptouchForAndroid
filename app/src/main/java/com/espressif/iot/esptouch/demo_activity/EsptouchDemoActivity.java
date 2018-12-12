@@ -389,6 +389,9 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                                 .append(" more result(s) without showing\n");
                     }
                     mResultDialog.setMessage(sb.toString());
+                    /* TO-DO: add socket logic below */
+
+                    /* End of sock logic */
                 } else {
                     mResultDialog.setMessage("Esptouch fail");
                 }
