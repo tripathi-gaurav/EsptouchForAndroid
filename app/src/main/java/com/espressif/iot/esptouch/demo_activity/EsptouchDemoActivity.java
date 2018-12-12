@@ -39,7 +39,13 @@ import com.espressif.iot.esptouch.util.ByteUtil;
 import com.espressif.iot.esptouch.util.EspNetUtil;
 import com.espressif.iot_esptouch_demo.R;
 
+import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.List;
 
 public class EsptouchDemoActivity extends AppCompatActivity implements OnClickListener {
@@ -361,6 +367,9 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                 return;
             }
 
+            // IA-8660: added for socket logic
+            InetAddress iotAddress = null;
+
             IEsptouchResult firstResult = result.get(0);
             // check whether the task is cancelled and no results received
             if (!firstResult.isCancelled()) {
@@ -378,6 +387,8 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                                 .append(", InetAddress = ")
                                 .append(resultInList.getInetAddress().getHostAddress())
                                 .append("\n");
+                        //IA-8660: added for iot socket conn
+                        iotAddress = resultInList.getInetAddress();
                         count++;
                         if (count >= maxDisplayCount) {
                             break;
@@ -389,7 +400,29 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                                 .append(" more result(s) without showing\n");
                     }
                     mResultDialog.setMessage(sb.toString());
+
                     /* TO-DO: add socket logic below */
+                    // 4444
+                    String ipAddr = iotAddress.getHostAddress();
+                    int iotPort = 44444;
+                    DatagramSocket sock = null;
+                    try{
+                        sock = new DatagramSocket();
+                        String secureMessageForAuth = "ia8660authcode18";
+                        DatagramPacket packet = new DatagramPacket(secureMessageForAuth.getBytes(), secureMessageForAuth.length(), iotAddress, iotPort);
+                        sock.setBroadcast(true);
+                        sock.send(packet);
+
+                    }catch(UnknownHostException e){
+                        e.printStackTrace();
+                    }catch(IOException e){
+                        e.printStackTrace();
+                    }finally{
+                        if( sock != null ){
+                            sock.close();
+                        }
+                    }
+
 
                     /* End of sock logic */
                 } else {
