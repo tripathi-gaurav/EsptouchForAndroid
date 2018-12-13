@@ -16,6 +16,7 @@ import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -40,13 +41,22 @@ import com.espressif.iot.esptouch.util.EspNetUtil;
 import com.espressif.iot_esptouch_demo.R;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.List;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class EsptouchDemoActivity extends AppCompatActivity implements OnClickListener {
     private static final String TAG = "EsptouchDemoActivity";
@@ -366,9 +376,7 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                 mResultDialog.show();
                 return;
             }
-
-            // IA-8660: added for socket logic
-            InetAddress iotAddress = null;
+            StringBuilder sbsock = new StringBuilder();         //This line for a buffer
 
             IEsptouchResult firstResult = result.get(0);
             // check whether the task is cancelled and no results received
@@ -387,9 +395,8 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                                 .append(", InetAddress = ")
                                 .append(resultInList.getInetAddress().getHostAddress())
                                 .append("\n");
-                        //IA-8660: added for iot socket conn
-                        iotAddress = resultInList.getInetAddress();
                         count++;
+                        sbsock.append(resultInList.getInetAddress().getHostAddress());  //This line to store the IP address
                         if (count >= maxDisplayCount) {
                             break;
                         }
@@ -400,39 +407,54 @@ public class EsptouchDemoActivity extends AppCompatActivity implements OnClickLi
                                 .append(" more result(s) without showing\n");
                     }
                     mResultDialog.setMessage(sb.toString());
-
-                    /* TO-DO: add socket logic below */
-                    // 4444
-                    String ipAddr = iotAddress.getHostAddress();
-                    int iotPort = 44444;
-                    DatagramSocket sock = null;
-                    try{
-                        sock = new DatagramSocket();
-                        String secureMessageForAuth = "ia8660authcode18";
-                        DatagramPacket packet = new DatagramPacket(secureMessageForAuth.getBytes(), secureMessageForAuth.length(), iotAddress, iotPort);
-                        sock.setBroadcast(true);
-                        sock.send(packet);
-
-                    }catch(UnknownHostException e){
-                        e.printStackTrace();
-                    }catch(IOException e){
-                        e.printStackTrace();
-                    }finally{
-                        if( sock != null ){
-                            sock.close();
-                        }
-                    }
-
-
-                    /* End of sock logic */
                 } else {
                     mResultDialog.setMessage("Esptouch fail");
                 }
 
                 mResultDialog.show();
-            }
 
+            }
+            //IA - 8660
+            startSockClient(String.valueOf(sbsock));              //function call to start socket client
             activity.mTask = null;
         }
+
+        //IA - 8660
+
+        private void startSockClient(final String sbsock) {
+            final String msg = "1234567890";
+            final Handler handler = new Handler();
+            Thread thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+
+                    try {
+                        //Replace below IP with the IP of that device in which server socket open.
+                        //If you change port then change the port number in the server side code also.
+                        Socket s = new Socket(sbsock, 4444);
+
+                        OutputStream out = s.getOutputStream();
+
+                        PrintWriter output = new PrintWriter(out);
+
+                        output.println(msg);
+                        output.flush();
+
+
+                        output.close();
+                        out.close();
+                        s.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+
+                    }
+                }
+            });
+
+            thread.start();
+
+        }
+
+
     }
 }
